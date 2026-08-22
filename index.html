@@ -103,6 +103,8 @@
     background:linear-gradient(180deg,#8aa4ff 0%,#4facfe 60%,#28d9c4 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
   .widget-num span { font-size:14px; color:var(--muted); }
+  .widget.past .widget-num { background:linear-gradient(180deg,#ffd166 0%,#ffb54d 100%); -webkit-background-clip:text; background-clip:text; }
+  .widget.past .widget-num span { color:var(--warn); }
   .widget-work { text-align:center; font-size:13px; color:var(--accent2); font-weight:700; margin-top:4px; }
   .widget-work.past { color:var(--warn); }
 
@@ -402,13 +404,7 @@ function renderDetail(){
       html += '<div class="big-days" style="font-size:46px">今天</div>';
       html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     } else {
-      var pd = countDays(target, nowStart, false);
       html += '<div class="big-days past">'+Math.abs(diff)+'</div><div class="days-label past">天前</div>';
-      if (showWork) {
-        html += '<div class="work-pill past">除去休息日还有 <span>'+pd.work+'</span> 天</div>';
-        html += '<div class="rest-detail">'+restDetailText(pd)+'</div>';
-      }
-      html += '<div class="exact-countdown past" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     }
     html += '<label class="wd-toggle-row"><span class="switch"><input type="checkbox" data-act="toggleWork" data-id="'+esc(item.id)+'"'+(showWork?" checked":"")+'><span class="slider"></span></span>是否计算除开休息日</label>';
     html += '</div>';
@@ -426,17 +422,17 @@ function renderMini(){
     var target=dayStart(item.target);
     var diff=diffDays(nowStart,target);
     var showWork = item.showWork !== false;
-    html += '<div class="widget" data-id="'+esc(item.id)+'">';
+    html += '<div class="widget'+(diff<0?' past':'')+'" data-id="'+esc(item.id)+'">';
     html += '<div class="widget-actions">';
     html += '<button data-act="edit" data-id="'+esc(item.id)+'">✎</button>';
     html += '<button data-act="del" data-id="'+esc(item.id)+'">×</button>';
     html += '</div>';
     html += '<div class="widget-name">'+esc(item.name)+'</div>';
     var num = diff === 0 ? "今天" : (diff === 1 ? "明天" : (diff > 1 ? diff-1 : Math.abs(diff)));
-    html += '<div class="widget-num">'+num+'<span>天</span></div>';
-    if (diff !== 0) {
-      var d = diff > 0 ? countDays(nowStart,target,true) : countDays(target,nowStart,false);
-      html += '<div class="widget-work'+(diff<0?' past':'')+'">除休息日 '+d.work+' 天</div>';
+    html += '<div class="widget-num'+(diff<0?' past':'')+'">'+num+'<span>天</span></div>';
+    if (diff > 1) {
+      var d = countDays(nowStart,target,true);
+      html += '<div class="widget-work">除休息日 '+d.work+' 天</div>';
     }
     html += '</div>';
   });
