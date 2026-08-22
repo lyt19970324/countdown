@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1226">
+<title>倒计日</title>
+<link rel="apple-touch-icon" href="icon.png?v=3">
+<link rel="icon" type="image/png" href="icon.png?v=3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="倒计日">
+<style>
+  :root {
+    --bg1: #0f1226;
+    --bg2: #1a1040;
+    --card: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.12);
+    --text: #f2f3fb;
+    --muted: #9aa0b8;
+    --accent1: #7c6cff;
+    --accent2: #28d9c4;
+    --warn: #ffb54d;
+    --danger: #ff6b81;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    background:
+      radial-gradient(1200px 800px at 85% -10%, rgba(124,108,255,0.25), transparent 60%),
+      radial-gradient(1000px 700px at -10% 110%, rgba(40,217,196,0.18), transparent 60%),
+      linear-gradient(160deg, var(--bg1), var(--bg2));
+    color:var(--text);
+    min-height:100vh;
+    display:flex; justify-content:center;
+    padding:calc(24px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px));
+  }
+  .wrap { width:100%; max-width:560px; }
+
+  .app-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .app-title { font-size:26px; font-weight:800; letter-spacing:1px;
+    background:linear-gradient(90deg,#fff,#c9c5ff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .view-toggle { display:flex; gap:6px; background:rgba(255,255,255,0.08); padding:4px; border-radius:10px; }
+  .view-toggle button { border:none; background:transparent; color:var(--muted); font-size:13px; font-weight:600;
+    padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .view-toggle button.active { background:rgba(255,255,255,0.15); color:#fff; }
+
+  .add-btn { width:100%; padding:14px; border:1.5px dashed var(--border); border-radius:14px;
+    background:rgba(255,255,255,0.03); color:var(--muted); font-size:15px; cursor:pointer; margin-bottom:18px; transition:.2s; }
+  .add-btn:hover { border-color:var(--accent1); color:#fff; background:rgba(124,108,255,0.08); }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:18px 16px; margin-bottom:14px; backdrop-filter:blur(12px); animation:pop .25s ease; }
+  @keyframes pop { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+  .card-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .item-name { font-size:17px; font-weight:700; }
+  .card-actions { display:flex; gap:10px; }
+  .card-actions button { background:rgba(255,255,255,0.08); border:none; color:var(--muted); font-size:14px;
+    padding:5px 10px; border-radius:8px; cursor:pointer; }
+  .card-actions .edit:hover { color:var(--accent2); }
+  .card-actions .del:hover { color:var(--danger); }
+
+  .date-line { color:var(--muted); font-size:13px; margin-bottom:10px; }
+
+  .big-number { font-size:52px; font-weight:800; line-height:1.1;
+    background:linear-gradient(90deg,var(--accent1),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .big-number.warn { background:linear-gradient(90deg,var(--warn),#ff9d5c); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .big-number.past { background:linear-gradient(90deg,var(--danger),#ff9d5c); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .big-number.today { font-size:40px; }
+  .unit { font-size:16px; color:var(--muted); margin-left:4px; }
+
+  .workday-line { margin-top:6px; font-size:22px; font-weight:800; color:var(--accent2); }
+  .workday-line.past { color:var(--danger); }
+  .workday-sub { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.5; }
+  .workday-sub .hi { color:var(--warn); }
+
+  .wd-toggle-row { display:flex; align-items:center; gap:8px; margin-top:12px; padding-top:12px;
+    border-top:1px solid var(--border); font-size:12px; color:var(--muted); }
+  .switch { position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; cursor:pointer; inset:0; background:rgba(255,255,255,0.15); border-radius:22px; transition:.3s; }
+  .slider:before { content:""; position:absolute; height:16px; width:16px; left:3px; bottom:3px;
+    background:#fff; border-radius:50%; transition:.3s; }
+  .switch input:checked + .slider { background:var(--accent1); }
+  .switch input:checked + .slider:before { transform:translateX(16px); }
+  .mini-switch { width:34px; height:20px; }
+  .mini-switch .slider:before { width:14px; height:14px; }
+
+  /* 小组件网格 */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+  .widget { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:14px;
+    backdrop-filter:blur(12px); animation:pop .25s ease; }
+  .widget-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .widget-name { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .widget-actions { display:flex; gap:6px; }
+  .widget-actions button { background:rgba(255,255,255,0.08); border:none; color:var(--muted); font-size:12px;
+    padding:3px 7px; border-radius:6px; cursor:pointer; }
+  .widget-num { font-size:34px; font-weight:800;
+    background:linear-gradient(90deg,var(--accent1),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .widget-num.past { background:linear-gradient(90deg,var(--danger),#ff9d5c); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .widget-num.today { font-size:22px; }
+  .widget-sub { font-size:11px; color:var(--muted); margin-top:4px; }
+  .widget-sub .ok { color:var(--accent2); font-weight:700; }
+
+  /* 设置面板 */
+  .panel { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; justify-content:center; z-index:100; }
+  .panel.open { display:flex; }
+  .panel-body { width:100%; max-width:560px; background:#141a33; border-radius:20px 20px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px)); animation:slideUp .3s ease; max-height:85vh; overflow-y:auto; }
+  @keyframes slideUp { from{transform:translateY(100%);} to{transform:none;} }
+  .panel-title { font-size:18px; font-weight:700; margin-bottom:16px; text-align:center; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+  .field input, .field select { width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px;
+    background:rgba(255,255,255,0.05); color:#fff; font-size:15px; }
+  .field input[type="date"] { color-scheme:dark; }
+  .field input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1); }
+  .btn-row { display:flex; gap:10px; margin-top:18px; }
+  .btn { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
+  .btn-primary { background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#fff; }
+  .btn-ghost { background:rgba(255,255,255,0.1); color:var(--muted); }
+  .btn-danger { background:rgba(255,107,129,0.15); color:var(--danger); }
+
+  /* 休息日开关 */
+  .settings-row { margin-bottom:10px; }
+  .settings-row .row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; }
+  .settings-row .row .lbl { font-size:14px; }
+  .settings-row .row .sub { font-size:12px; color:var(--muted); }
+  .rest-days-chips { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+  .rest-days-chips button { padding:7px 12px; border-radius:8px; border:1px solid var(--border);
+    background:rgba(255,255,255,0.05); color:var(--muted); font-size:13px; cursor:pointer; }
+  .rest-days-chips button.on { background:var(--accent1); color:#fff; border-color:var(--accent1); }
+  .extra-list { margin:8px 0; }
+  .extra-item { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05);
+    padding:8px 12px; border-radius:8px; margin-bottom:6px; font-size:13px; }
+  .extra-item button { background:transparent; border:none; color:var(--danger); font-size:14px; cursor:pointer; }
+  .add-extra { display:flex; gap:8px; margin-top:6px; }
+  .add-extra input[type="date"] { flex:1; padding:9px 10px; border:1px solid var(--border); border-radius:8px;
+    background:rgba(255,255,255,0.05); color:#fff; color-scheme:dark; }
+  .add-extra button { padding:9px 14px; border:none; border-radius:8px; background:var(--accent1); color:#fff; cursor:pointer; font-weight:600; }
+  .empty-tip { text-align:center; color:var(--muted); padding:40px 0; font-size:14px; line-height:1.8; }
+
+  /* 设置按钮 */
+  .settings-btn { position:relative; }
+  .settings-btn .dot { position:absolute; top:3px; right:3px; width:7px; height:7px; background:var(--accent2);
+    border-radius:50%; }
+  .rest-day-badge { display:inline-block; background:rgba(124,108,255,0.15); color:#b4a8ff; border-radius:6px;
+    padding:2px 6px; font-size:11px; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="app-header">
+    <div class="app-title">倒计日</div>
+    <div class="view-toggle" id="viewToggle">
+      <button data-view="detail" class="active">详细</button>
+      <button data-view="mini">小组件</button>
+    </div>
+  </div>
+
+  <button class="add-btn" id="addBtn">＋ 添加倒计日</button>
+
+  <div id="list"></div>
+  <div class="empty-tip" id="emptyTip" style="display:none">
+    还没有倒计日<br>点击上方"添加倒计日"创建
+  </div>
+
+  <!-- 编辑面板 -->
+  <div class="panel" id="editPanel">
+    <div class="panel-body">
+      <div class="panel-title" id="editTitle">添加倒计日</div>
+      <div class="field">
+        <label>名称</label>
+        <input id="f_name" type="text" placeholder="如：考试 / 生日 / 放假">
+      </div>
+      <div class="field">
+        <label>目标日期</label>
+        <input id="f_date" type="date">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="f_cancel">取消</button>
+        <button class="btn btn-primary" id="f_save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置面板 -->
+  <div class="panel" id="settingsPanel">
+    <div class="panel-body">
+      <div class="panel-title">休息日设置</div>
+
+      <div class="settings-row">
+        <div class="row">
+          <div class="lbl">计入法定节假日与调休</div>
+          <label class="switch"><input type="checkbox" id="s_legal"><span class="slider"></span></label>
+        </div>
+        <div class="sub" style="font-size:12px;color:var(--muted)">自动计算国家法定放假与补班日</div>
+      </div>
+
+      <div class="settings-row">
+        <div class="row"><div class="lbl">每周休息日</div></div>
+        <div class="rest-days-chips" id="s_weeks">
+          <button data-d="1">周一</button><button data-d="2">周二</button>
+          <button data-d="3">周三</button><button data-d="4">周四</button>
+          <button data-d="5">周五</button><button data-d="6">周六</button><button data-d="0">周日</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="row"><div class="lbl">自定义休息日</div></div>
+        <div class="extra-list" id="s_extra"></div>
+        <div class="add-extra">
+          <input type="date" id="s_extra_date">
+          <button id="s_extra_add">添加</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="s_close">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var STORE_KEY = "countdown-app-v2";
+var LEGAL_REST = {
+  "2025-01-01":"元旦", "2025-01-28":"春节", "2025-01-29":"春节", "2025-01-30":"春节", "2025-01-31":"春节",
+  "2025-02-01":"春节", "2025-02-02":"春节", "2025-02-03":"春节", "2025-02-04":"春节",
+  "2025-04-04":"清明节", "2025-04-05":"清明节", "2025-04-06":"清明节",
+  "2025-05-01":"劳动节", "2025-05-02":"劳动节", "2025-05-03":"劳动节", "2025-05-04":"劳动节", "2025-05-05":"劳动节",
+  "2025-05-31":"端午节", "2025-06-01":"端午节", "2025-06-02":"端午节",
+  "2025-10-01":"国庆节", "2025-10-02":"国庆节", "2025-10-03":"国庆节", "2025-10-04":"国庆节",
+  "2025-10-05":"国庆节", "2025-10-06":"国庆节", "2025-10-07":"国庆节", "2025-10-08":"国庆节",
+  "2026-01-01":"元旦", "2026-01-02":"元旦", "2026-01-03":"元旦",
+  "2026-02-15":"春节", "2026-02-16":"春节", "2026-02-17":"春节", "2026-02-18":"春节",
+  "2026-02-19":"春节", "2026-02-20":"春节", "2026-02-21":"春节", "2026-02-22":"春节", "2026-02-23":"春节",
+  "2026-04-04":"清明节", "2026-04-05":"清明节", "2026-04-06":"清明节",
+  "2026-05-01":"劳动节", "2026-05-02":"劳动节", "2026-05-03":"劳动节", "2026-05-04":"劳动节", "2026-05-05":"劳动节",
+  "2026-06-19":"端午节", "2026-06-20":"端午节", "2026-06-21":"端午节",
+  "2026-09-25":"中秋节", "2026-09-26":"中秋节", "2026-09-27":"中秋节",
+  "2026-10-01":"国庆节", "2026-10-02":"国庆节", "2026-10-03":"国庆节", "2026-10-04":"国庆节",
+  "2026-10-05":"国庆节", "2026-10-06":"国庆节", "2026-10-07":"国庆节"
+};
+var LEGAL_WORK = {
+  "2025-01-26":true, "2025-02-08":true, "2025-04-27":true, "2025-09-28":true, "2025-10-11":true,
+  "2026-01-04":true, "2026-02-14":true, "2026-02-28":true, "2026-05-09":true,
+  "2026-09-20":true, "2026-10-10":true
+};
+
+var state = {
+  restDays: [6,0],
+  extraRest: [],
+  useLegal: true,
+  items: [],
+  editingId: null,
+  view: "detail"
+};
+
+// 数据迁移：v1 -> v2
+function migrate(old) {
+  var items = [];
+  var oldItems = old.items || old.countdowns || [];
+  for (var i=0;i<oldItems.length;i++){
+    var it = oldItems[i];
+    items.push({
+      id: it.id || "it" + Math.random().toString(36).slice(2),
+      name: it.name || it.title || "倒计日",
+      target: it.target || it.date || "",
+      showWork: it.showWork !== undefined ? it.showWork : true
+    });
+  }
+  return {
+    restDays: old.restDays || [6,0],
+    extraRest: old.extraRest || [],
+    useLegal: old.useLegal !== false,
+    items: items,
+    editingId: null,
+    view: old.view || "detail"
+  };
+}
+
+function load(){
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    if (data.items) {
+      // v2 格式
+      state.restDays = data.restDays || [6,0];
+      state.extraRest = data.extraRest || [];
+      state.useLegal = data.useLegal !== false;
+      state.items = data.items || [];
+      state.view = data.view || "detail";
+    } else {
+      // v1 格式迁移
+      state = migrate(data);
+    }
+  } catch(e) { /* ignore */ }
+}
+function save(){
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+}
+
+// ===== 工具函数 =====
+function dayStart(d){ var x=new Date(d); x.setHours(0,0,0,0); return x; }
+function dateStr(d){ var y=d.getFullYear(),m=("0"+(d.getMonth()+1)).slice(-2),dd=("0"+d.getDate()).slice(-2); return y+"-"+m+"-"+dd; }
+function todayStr(){ return dateStr(new Date()); }
+function diffDays(a,b){ return Math.round((dayStart(b)-dayStart(a))/86400000); }
+
+function restType(d){
+  var ds = dateStr(d);
+  if (state.extraRest.indexOf(ds) !== -1) return "user";
+  if (state.useLegal && LEGAL_REST[ds]) return "legal";
+  if (state.useLegal && LEGAL_WORK[ds]) return "makeup";
+  if (state.restDays.indexOf(d.getDay()) !== -1) return "week";
+  return false;
+}
+
+function countDays(from, to, excludeEnd){
+  var work=0,rest=0,week=0,legal=0,extra=0,makeup=0;
+  var d = new Date(dayStart(from));
+  d.setDate(d.getDate()+1);
+  var end = dayStart(to);
+  if (excludeEnd) end.setDate(end.getDate()-1);
+  while (d <= end) {
+    var t = restType(d);
+    if (t==="user"){rest++;extra++;}
+    else if (t==="legal"){rest++;legal++;}
+    else if (t==="week"){rest++;week++;}
+    else if (t==="makeup"){work++;makeup++;}
+    else {work++;}
+    d.setDate(d.getDate()+1);
+  }
+  return {work:work,rest:rest,week:week,legal:legal,extra:extra,makeup:makeup};
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+
+// 明细文案
+function detailText(c){
+  var parts=[];
+  if (c.rest>0) {
+    var s=[];
+    if (c.week>0) s.push("周休"+c.week+"天");
+    if (c.legal>0) s.push("法定假"+c.legal+"天");
+    if (c.extra>0) s.push("自定义"+c.extra+"天");
+    parts.push("休息日"+c.rest+"天（"+s.join("、")+"）");
+  } else {
+    parts.push("无休息日");
+  }
+  if (c.makeup>0) parts.push("补班日"+c.makeup+"天已计入工作日");
+  return parts.join(" · ");
+}
+
+// ===== 渲染 =====
+function render(){
+  var list=document.getElementById("list");
+  var empty=document.getElementById("emptyTip");
+  if (state.view==="mini") { renderMini(list); }
+  else { renderDetail(list); }
+  empty.style.display = state.items.length===0 ? "" : "none";
+  // view toggle
+  document.querySelectorAll("#viewToggle button").forEach(function(b){
+    b.classList.toggle("active", b.dataset.view===state.view);
+  });
+  save();
+}
+
+function renderDetail(list){
+  if (state.items.length===0){ list.innerHTML=""; return; }
+  var now=new Date();
+  var nowStart=dayStart(now);
+  // 按日期升序
+  var sorted=state.items.slice().sort(function(a,b){ return (a.target<b.target?-1:(a.target>b.target?1:0)); });
+  var html="";
+  sorted.forEach(function(item){
+    var target=dayStart(item.target);
+    var diff=diffDays(nowStart,target);
+    var showWork = item.showWork !== false;
+    html += '<div class="card" data-id="'+esc(item.id)+'">';
+    html += '<div class="card-head"><span class="item-name">'+esc(item.name)+'</span>';
+    html += '<div class="card-actions">';
+    html += '<button class="edit" data-act="edit" data-id="'+esc(item.id)+'">编辑</button>';
+    html += '<button class="del" data-act="del" data-id="'+esc(item.id)+'">删除</button>';
+    html += '</div></div>';
+    html += '<div class="date-line">目标：'+esc(item.target)+'</div>';
+    if (diff > 1) {
+      var wd = countDays(nowStart, target, true);
+      html += '<div class="big-number">'+(diff-1)+'<span class="unit">天</span></div>';
+      if (showWork) {
+        html += '<div class="workday-line">除开休息日 '+wd.work+' 天</div>';
+        html += '<div class="workday-sub">'+detailText(wd)+'</div>';
+      }
+    } else if (diff === 1) {
+      html += '<div class="big-number today">明天</div>';
+      html += '<div class="workday-line">马上就到了</div>';
+    } else if (diff === 0) {
+      html += '<div class="big-number today">今天</div>';
+      html += '<div class="workday-line">就是今天！</div>';
+    } else {
+      // 已过去：(target, now]，含今天
+      var pd = countDays(target, nowStart, false);
+      html += '<div class="big-number past">'+(diffDays(target,nowStart))+'<span class="unit">天前</span></div>';
+      if (showWork) {
+        html += '<div class="workday-line past">其中工作日 '+pd.work+' 天</div>';
+        html += '<div class="workday-sub">'+detailText(pd)+'</div>';
+      }
+    }
+    // 底部小开关：是否计算除开休息日
+    html += '<label class="wd-toggle-row"><span class="switch mini-switch"><input type="checkbox" data-act="toggleWork" data-id="'+esc(item.id)+'"'+(showWork?" checked":"")+'><span class="slider"></span></span>是否计算除开休息日</label>';
+    html += '</div>';
+  });
+  list.innerHTML=html;
+}
+
+function renderMini(list){
+  if (state.items.length===0){ list.innerHTML=""; return; }
+  var now=new Date();
+  var nowStart=dayStart(now);
+  var sorted=state.items.slice().sort(function(a,b){ return (a.target<b.target?-1:(a.target>b.target?1:0)); });
+  var html='<div class="grid">';
+  sorted.forEach(function(item){
+    var target=dayStart(item.target);
+    var diff=diffDays(nowStart,target);
+    var showWork = item.showWork !== false;
+    html += '<div class="widget" data-id="'+esc(item.id)+'">';
+    html += '<div class="widget-head"><span class="widget-name">'+esc(item.name)+'</span>';
+    html += '<div class="widget-actions">';
+    html += '<button data-act="edit" data-id="'+esc(item.id)+'">✎</button>';
+    html += '<button data-act="del" data-id="'+esc(item.id)+'">×</button>';
+    html += '</div></div>';
+    if (diff > 1) {
+      var wd = countDays(nowStart,target,true);
+      html += '<div class="widget-num">'+(diff-1)+'<span style="font-size:14px">天</span></div>';
+      if (showWork) {
+        html += '<div class="widget-sub ok">除休息 '+wd.work+' 天</div>';
+      }
+    } else if (diff===1) {
+      html += '<div class="widget-num today">明天</div>';
+    } else if (diff===0) {
+      html += '<div class="widget-num today">今天</div>';
+    } else {
+      html += '<div class="widget-num past">'+diffDays(target,nowStart)+'<span style="font-size:12px">天前</span></div>';
+      if (showWork) {
+        var pd=countDays(target,nowStart,false);
+        html += '<div class="widget-sub">工作日 '+pd.work+' 天</div>';
+      }
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  list.innerHTML=html;
+}
+
+// ===== 事件 =====
+function openEdit(id){
+  state.editingId = id || null;
+  var title=document.getElementById("editTitle");
+  var panel=document.getElementById("editPanel");
+  if (id) {
+    var item=state.items.find(function(x){return x.id===id;});
+    if (!item) return;
+    title.textContent="编辑倒计日";
+    document.getElementById("f_name").value=item.name;
+    document.getElementById("f_date").value=item.target;
+  } else {
+    title.textContent="添加倒计日";
+    document.getElementById("f_name").value="";
+    document.getElementById("f_date").value="";
+  }
+  panel.classList.add("open");
+}
+function closeEdit(){ document.getElementById("editPanel").classList.remove("open"); state.editingId=null; }
+function saveEdit(){
+  var name=document.getElementById("f_name").value.trim();
+  var date=document.getElementById("f_date").value;
+  if (!name) { alert("请填写名称"); return; }
+  if (!date) { alert("请选择日期"); return; }
+  if (state.editingId) {
+    var item=state.items.find(function(x){return x.id===state.editingId;});
+    if (item){ item.name=name; item.target=date; }
+  } else {
+    state.items.push({ id:"it"+Math.random().toString(36).slice(2), name:name, target:date, showWork:true });
+  }
+  closeEdit();
+  render();
+}
+
+function openSettings(){
+  document.getElementById("s_legal").checked = state.useLegal;
+  // 周休息日按钮
+  document.querySelectorAll("#s_weeks button").forEach(function(b){
+    b.classList.toggle("on", state.restDays.indexOf(parseInt(b.dataset.d,10)) !== -1);
+  });
+  renderExtra();
+  document.getElementById("settingsPanel").classList.add("open");
+}
+function closeSettings(){ document.getElementById("settingsPanel").classList.remove("open"); }
+function renderExtra(){
+  var el=document.getElementById("s_extra");
+  if (state.extraRest.length===0){ el.innerHTML='<div style="font-size:12px;color:var(--muted)">暂无自定义休息日</div>'; return; }
+  var html="";
+  state.extraRest.slice().sort().forEach(function(ds){
+    var name=LEGAL_REST[ds]||"休息日";
+    html+='<div class="extra-item"><span>'+ds+' '+esc(name)+'</span><button data-extra="'+esc(ds)+'">删除</button></div>';
+  });
+  el.innerHTML=html;
+}
+
+document.addEventListener("click", function(e){
+  var t=e.target;
+
+  // 视图切换
+  if (t.closest && t.closest("#viewToggle")) {
+    var btn=t.closest("button");
+    if (btn){ state.view=btn.dataset.view; render(); }
+    return;
+  }
+  // 添加
+  if (t.id==="addBtn"){ openEdit(); return; }
+  // 卡片操作
+  var actEl=t.closest("[data-act]");
+  if (actEl){
+    var act=actEl.dataset.act, id=actEl.dataset.id;
+    if (act==="edit"){ openEdit(id); return; }
+    if (act==="del"){
+      if (confirm("确定删除这个倒计日？")){
+        state.items=state.items.filter(function(x){return x.id!==id;});
+        render();
+      }
+      return;
+    }
+    if (act==="toggleWork"){
+      var item=state.items.find(function(x){return x.id===id;});
+      if (item){ item.showWork = actEl.checked; save(); render(); }
+      return;
+    }
+  }
+  // 编辑面板
+  if (t.id==="f_cancel"){ closeEdit(); return; }
+  if (t.id==="f_save"){ saveEdit(); return; }
+  if (t.id==="s_close"){ closeSettings(); return; }
+  if (t.id==="s_extra_add"){
+    var d=document.getElementById("s_extra_date").value;
+    if (!d) { alert("请选择日期"); return; }
+    if (state.extraRest.indexOf(d)===-1) state.extraRest.push(d);
+    document.getElementById("s_extra_date").value="";
+    renderExtra(); save();
+    return;
+  }
+  // 删除自定义休息日
+  var extraDel=t.closest("[data-extra]");
+  if (extraDel){
+    state.extraRest=state.extraRest.filter(function(x){return x!==extraDel.dataset.extra;});
+    renderExtra(); save();
+    return;
+  }
+  // 周休息日切换
+  var weekBtn=t.closest("#s_weeks button");
+  if (weekBtn){
+    var d=parseInt(weekBtn.dataset.d,10);
+    var idx=state.restDays.indexOf(d);
+    if (idx===-1) state.restDays.push(d); else state.restDays.splice(idx,1);
+    weekBtn.classList.toggle("on", idx===-1);
+    save();
+    return;
+  }
+  // 法定开关
+  if (t.id==="s_legal"){
+    state.useLegal=t.checked; save();
+    return;
+  }
+});
+
+// 设置按钮（右上角）
+// 在 header 加一个设置入口
+document.addEventListener("DOMContentLoaded", function(){
+  var header=document.querySelector(".app-header");
+  if (header){
+    var btn=document.createElement("button");
+    btn.id="settingsGear";
+    btn.textContent="⚙";
+    btn.style.cssText="background:rgba(255,255,255,0.08);border:none;color:var(--muted);font-size:18px;padding:6px 10px;border-radius:8px;cursor:pointer;margin-left:8px;";
+    btn.addEventListener("click", openSettings);
+    header.querySelector(".view-toggle").after(btn);
+  }
+  load();
+  render();
+});
+</script>
+</body>
+</html>
