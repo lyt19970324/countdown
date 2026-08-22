@@ -68,7 +68,14 @@
     background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:30px;
     padding:12px 24px; width:fit-content; font-size:15px; color:#fff; }
   .work-pill span { font-size:30px; font-weight:800; color:var(--accent2); }
-  .work-pill.past span { color:var(--danger); }
+  .big-days.past {
+    background:linear-gradient(180deg,#ffd166 0%,#ffb54d 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .days-label.past { color:var(--warn); }
+  .exact-countdown.past { color:var(--warn); }
+  .exact-countdown.past b { color:var(--warn); }
+  .work-pill.past span { color:var(--warn); }
 
   .rest-detail { text-align:center; font-size:12px; color:var(--muted); line-height:1.6; padding:0 6px; }
   .exact-countdown { text-align:center; font-size:14px; color:var(--muted); margin-top:10px; letter-spacing:1px; }
@@ -97,7 +104,7 @@
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
   .widget-num span { font-size:14px; color:var(--muted); }
   .widget-work { text-align:center; font-size:13px; color:var(--accent2); font-weight:700; margin-top:4px; }
-  .widget-work.past { color:var(--danger); }
+  .widget-work.past { color:var(--warn); }
 
   /* 内联添加表单 */
   .add-form .field { margin-bottom:12px; }
@@ -396,12 +403,12 @@ function renderDetail(){
       html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     } else {
       var pd = countDays(target, nowStart, false);
-      html += '<div class="big-days">'+Math.abs(diff)+'</div><div class="days-label">天前</div>';
+      html += '<div class="big-days past">'+Math.abs(diff)+'</div><div class="days-label past">天前</div>';
       if (showWork) {
         html += '<div class="work-pill past">除去休息日还有 <span>'+pd.work+'</span> 天</div>';
         html += '<div class="rest-detail">'+restDetailText(pd)+'</div>';
       }
-      html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
+      html += '<div class="exact-countdown past" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     }
     html += '<label class="wd-toggle-row"><span class="switch"><input type="checkbox" data-act="toggleWork" data-id="'+esc(item.id)+'"'+(showWork?" checked":"")+'><span class="slider"></span></span>是否计算除开休息日</label>';
     html += '</div>';
