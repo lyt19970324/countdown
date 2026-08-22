@@ -246,13 +246,29 @@ var LEGAL_REST = {
   "2026-06-19":"端午节", "2026-06-20":"端午节", "2026-06-21":"端午节",
   "2026-09-25":"中秋节", "2026-09-26":"中秋节", "2026-09-27":"中秋节",
   "2026-10-01":"国庆节", "2026-10-02":"国庆节", "2026-10-03":"国庆节", "2026-10-04":"国庆节",
-  "2026-10-05":"国庆节", "2026-10-06":"国庆节", "2026-10-07":"国庆节"
+  "2026-10-05":"国庆节", "2026-10-06":"国庆节", "2026-10-07":"国庆节",
+  "2027-01-01":"元旦",
+  "2027-02-06":"春节", "2027-02-07":"春节", "2027-02-08":"春节",
+  "2027-04-05":"清明节",
+  "2027-05-01":"劳动节",
+  "2027-06-09":"端午节",
+  "2027-09-15":"中秋节",
+  "2027-10-01":"国庆节", "2027-10-02":"国庆节", "2027-10-03":"国庆节"
 };
 var LEGAL_WORK = {
   "2025-01-26":true, "2025-02-08":true, "2025-04-27":true, "2025-09-28":true, "2025-10-11":true,
   "2026-01-04":true, "2026-02-14":true, "2026-02-28":true, "2026-05-09":true,
   "2026-09-20":true, "2026-10-10":true
 };
+/* 调休安排未公布的年份（远程数据更新后会自动覆盖） */
+var incompleteYears = ["2027"];
+/* 在线假日数据源：更新仓库里的 holidays.json，应用打开即自动生效 */
+var REMOTE_SOURCES = [
+  "https://cdn.jsdelivr.net/gh/lyt19970324/countdown@main/holidays.json",
+  "https://raw.githubusercontent.com/lyt19970324/countdown/main/holidays.json"
+];
+var HOLIDAY_CACHE_KEY = "countdown-holiday-remote";
+var HOLIDAY_CACHE_TTL = 24*3600*1000;
 
 var state = {
   restDays: [6,0],
@@ -339,14 +355,16 @@ function countDays(from, to, excludeEnd){
 
 function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
 
-function restDetailText(c){
-  if (c.rest===0) return "期间无休息日";
+function restDetailText(c, year){
+  var incomplete = year && incompleteYears.indexOf(year) !== -1;
+  if (c.rest===0) return incomplete ? "期间无休息日（"+year+" 调休安排未发布，按法定假日保底计算）" : "期间无休息日";
   var s=[];
   if (c.week>0) s.push("周末 "+c.week+"天");
   if (c.legal>0) s.push("法定假日 "+c.legal+"天");
   if (c.extra>0) s.push("自定义 "+c.extra+"天");
   var t = "期间共有 "+c.rest+" 天休息日（"+s.join(" + ")+"）";
   if (c.makeup>0) t += " · 补班日 "+c.makeup+" 天已计入工作日";
+  if (incomplete) t += "<br>※ "+year+" 调休安排未发布，暂按法定假日保底计算";
   return t;
 }
 
@@ -413,7 +431,7 @@ function renderDetail(){
       if (showWork) {
         var wd = countDays(nowStart, target, true);
         html += '<div class="work-pill">除去休息日还有 <span>'+wd.work+'</span> 天</div>';
-        html += '<div class="rest-detail">'+restDetailText(wd)+'</div>';
+        html += '<div class="rest-detail">'+restDetailText(wd, item.target.slice(0,4))+'</div>';
       }
       html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     } else if (diff === 1) {
@@ -421,7 +439,7 @@ function renderDetail(){
       if (showWork) {
         var wd1 = countDays(nowStart, target, true);
         html += '<div class="work-pill">除去休息日还有 <span>'+wd1.work+'</span> 天</div>';
-        html += '<div class="rest-detail">'+restDetailText(wd1)+'</div>';
+        html += '<div class="rest-detail">'+restDetailText(wd1, item.target.slice(0,4))+'</div>';
       }
       html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     } else if (diff === 0) {
@@ -578,6 +596,45 @@ document.addEventListener("change", function(e){
   }
 });
 
+/* 在线假日数据：拉取仓库里的 holidays.json，官方公布新安排后更新文件即自动生效 */
+function applyRemoteData(data){
+  if (!data || typeof data !== "object") return false;
+  var rest = data.rest, work = data.work;
+  if (!rest || typeof rest !== "object") return false;
+  LEGAL_REST = rest;
+  LEGAL_WORK = (work && typeof work === "object") ? work : {};
+  if (Array.isArray(data.incompleteYears)) incompleteYears = data.incompleteYears;
+  return true;
+}
+function tryFetchRemoteHolidays(){
+  var cacheRaw=null;
+  try { cacheRaw=localStorage.getItem(HOLIDAY_CACHE_KEY); } catch(e){}
+  if (cacheRaw){
+    try {
+      var c=JSON.parse(cacheRaw);
+      if (c.time && Date.now()-c.time < HOLIDAY_CACHE_TTL && c.data){
+        if (applyRemoteData(c.data)) render();
+        return;
+      }
+    } catch(e){}
+  }
+  var i=0;
+  function next(){
+    if (i>=REMOTE_SOURCES.length) return;
+    var url=REMOTE_SOURCES[i++];
+    fetch(url, {cache:"no-cache"}).then(function(r){
+      if (!r.ok) throw new Error("http "+r.status);
+      return r.json();
+    }).then(function(data){
+      if (applyRemoteData(data)){
+        try { localStorage.setItem(HOLIDAY_CACHE_KEY, JSON.stringify({time:Date.now(), data:data})); } catch(e){}
+        render();
+      }
+    }).catch(next);
+  }
+  next();
+}
+
 /* 备份与恢复 */
 var BACKUP_KEY = "countdown-backup-meta";
 function backupPayload(){
@@ -675,6 +732,7 @@ document.addEventListener("DOMContentLoaded", function(){
   load();
   renderSettings();
   render();
+  tryFetchRemoteHolidays();
 });
 </script>
 </body>
