@@ -372,7 +372,7 @@ function renderDetail(){
   if (state.items.length===0){ listEl.innerHTML=""; return; }
   var now=new Date();
   var nowStart=dayStart(now);
-  var sorted=state.items.slice().sort(function(a,b){ return (a.target<b.target?-1:(a.target>b.target?1:0)); });
+  var sorted=state.items.slice();
   var html="";
   sorted.forEach(function(item){
     var target=dayStart(item.target);
@@ -420,7 +420,7 @@ function renderMini(){
   if (state.items.length===0){ listEl.innerHTML=""; return; }
   var now=new Date();
   var nowStart=dayStart(now);
-  var sorted=state.items.slice().sort(function(a,b){ return (a.target<b.target?-1:(a.target>b.target?1:0)); });
+  var sorted=state.items.slice();
   var html='<div class="grid">';
   sorted.forEach(function(item){
     var target=dayStart(item.target);
