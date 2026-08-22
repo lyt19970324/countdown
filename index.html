@@ -140,6 +140,14 @@
   .add-extra input[type="date"] { flex:1; padding:9px 10px; border:1px solid var(--border); border-radius:8px;
     background:rgba(255,255,255,0.05); color:#fff; color-scheme:dark; font-size:13px; }
   .add-extra button { padding:9px 14px; border:none; border-radius:8px; background:var(--accent1); color:#fff; cursor:pointer; font-weight:600; font-size:13px; }
+  .backup-btns { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .backup-btns button { padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+    background:rgba(255,255,255,0.08); color:#fff; cursor:pointer; font-weight:600; font-size:13px; }
+  .backup-btns button:active { background:rgba(255,255,255,0.18); }
+  #restoreBox textarea { width:100%; height:88px; padding:10px; border:1px solid var(--border); border-radius:8px;
+    background:rgba(255,255,255,0.05); color:#fff; font-size:12px; font-family:inherit; resize:vertical; }
+  #restoreBox button { width:100%; margin-top:8px; padding:11px; border:none; border-radius:8px;
+    background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
   .empty-tip { text-align:center; color:var(--muted); padding:34px 0 10px; font-size:14px; line-height:1.8; }
 </style>
 </head>
@@ -200,6 +208,20 @@
         <div class="add-extra">
           <input type="date" id="s_extra_date">
           <button id="s_extra_add">添加</button>
+        </div>
+      </div>
+      <div class="quick-row" style="display:block">
+        <div class="lbl">数据备份</div>
+        <div class="sub">清除浏览器数据或换手机前，先备份一份</div>
+        <div id="backupStatus" style="font-size:12px;margin-top:6px"></div>
+        <div class="backup-btns">
+          <button id="s_backup_file">备份到文件</button>
+          <button id="s_backup_copy">复制备份</button>
+          <button id="s_restore_show">恢复数据</button>
+        </div>
+        <div id="restoreBox" style="display:none;margin-top:10px">
+          <textarea id="restoreText" placeholder="把之前备份的内容整段粘贴到这里"></textarea>
+          <button id="s_restore_go">确认恢复</button>
         </div>
       </div>
     </div>
@@ -352,6 +374,7 @@ function render(){
   viewBtn.textContent = state.view==="mini" ? "详细视图" : "小组件";
   document.getElementById("quickWrap").style.display = state.view==="mini" ? "none" : "";
   addForm.style.display = state.view==="mini" ? "none" : "";
+  renderBackupStatus();
   save();
   startTick();
 }
@@ -552,6 +575,90 @@ document.addEventListener("click", function(e){
 document.addEventListener("change", function(e){
   if (e.target.id==="s_legal"){
     state.useLegal=e.target.checked; save(); render();
+  }
+});
+
+/* 备份与恢复 */
+var BACKUP_KEY = "countdown-backup-meta";
+function backupPayload(){
+  return JSON.stringify({ app:"countdown-backup", v:1,
+    restDays:state.restDays, extraRest:state.extraRest, useLegal:state.useLegal, items:state.items, view:state.view });
+}
+function saveBackupMeta(){
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify({ time:Date.now(), sig:backupPayload() })); } catch(e){}
+}
+function renderBackupStatus(){
+  var el=document.getElementById("backupStatus");
+  if (!el) return;
+  var raw=null;
+  try { raw=localStorage.getItem(BACKUP_KEY); } catch(e){}
+  if (!raw){ el.innerHTML='<span style="color:var(--muted)">还没备份过，建议先备份一次</span>'; return; }
+  var meta=null;
+  try { meta=JSON.parse(raw); } catch(e){}
+  if (!meta || !meta.time){ el.innerHTML='<span style="color:var(--muted)">还没备份过，建议先备份一次</span>'; return; }
+  var d=new Date(meta.time);
+  var tstr=(d.getMonth()+1)+"月"+d.getDate()+"日 "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+  if (meta.sig===backupPayload()){
+    el.innerHTML='<span style="color:var(--accent2)">上次备份：'+tstr+' · 数据一致 ✓</span>';
+  } else {
+    el.innerHTML='<span style="color:var(--warn)">⚠ 数据有变化，建议重新备份</span>';
+  }
+}
+function copyText(text, okMsg, onOk){
+  function fallback(){
+    var ta=document.createElement("textarea");
+    ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    var ok=false;
+    try{ ok=document.execCommand("copy"); }catch(e){}
+    ta.remove();
+    alert(ok ? okMsg : "复制失败，请改用“备份到文件”");
+    if (ok && onOk) onOk();
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ alert(okMsg); if (onOk) onOk(); }, fallback);
+  } else fallback();
+}
+document.addEventListener("click", function(e){
+  var t=e.target;
+  if (t.id==="s_backup_file"){
+    var data=backupPayload();
+    var blob=new Blob([data],{type:"text/plain"});
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="倒计日备份-"+dateStr(new Date())+".txt";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); },3000);
+    saveBackupMeta(); renderBackupStatus();
+    alert("已生成备份文件！请在弹窗里选择“存储到文件”，建议存到 iCloud 云盘");
+    return;
+  }
+  if (t.id==="s_backup_copy"){
+    copyText(backupPayload(),"已复制！打开备忘录新建一条，粘贴保存即可", function(){ saveBackupMeta(); renderBackupStatus(); });
+    return;
+  }
+  if (t.id==="s_restore_show"){
+    var box=document.getElementById("restoreBox");
+    box.style.display = box.style.display==="none" ? "block" : "none";
+    return;
+  }
+  if (t.id==="s_restore_go"){
+    var txt=document.getElementById("restoreText").value.trim();
+    if (!txt){ alert("请先粘贴备份内容"); return; }
+    var data=null;
+    try{ data=JSON.parse(txt); }catch(e){ data=null; }
+    if (!data || !data.items){ alert("备份内容不对，请确认粘贴的是完整备份"); return; }
+    if (!confirm("恢复将覆盖当前所有倒计日和设置，确定继续？")) return;
+    state.restDays=data.restDays||[6,0];
+    state.extraRest=data.extraRest||[];
+    state.useLegal=data.useLegal!==false;
+    state.items=data.items;
+    state.view=data.view||"detail";
+    save(); renderSettings(); render();
+    document.getElementById("restoreBox").style.display="none";
+    document.getElementById("restoreText").value="";
+    alert("恢复成功！"+state.items.length+" 个倒计日已找回");
+    return;
   }
 });
 
