@@ -71,6 +71,7 @@
   .big-days.past {
     background:linear-gradient(180deg,#ffd166 0%,#ffb54d 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    font-size:46px; line-height:1.2;
   }
   .days-label.past { color:var(--warn); }
   .exact-countdown.past { color:var(--warn); }
@@ -404,9 +405,11 @@ function renderDetail(){
       html += '<div class="big-days" style="font-size:46px">今天</div>';
       html += '<div class="exact-countdown" data-target="'+esc(item.target)+'T00:00:00">'+exactCountdown(target)+'</div>';
     } else {
-      html += '<div class="big-days past">'+Math.abs(diff)+'</div><div class="days-label past">天前</div>';
+      html += '<div class="big-days past">已过去 '+Math.abs(diff)+' 天</div>';
     }
-    html += '<label class="wd-toggle-row"><span class="switch"><input type="checkbox" data-act="toggleWork" data-id="'+esc(item.id)+'"'+(showWork?" checked":"")+'><span class="slider"></span></span>是否计算除开休息日</label>';
+    if (diff > 0) {
+      html += '<label class="wd-toggle-row"><span class="switch"><input type="checkbox" data-act="toggleWork" data-id="'+esc(item.id)+'"'+(showWork?" checked":"")+'><span class="slider"></span></span>是否计算除开休息日</label>';
+    }
     html += '</div>';
   });
   listEl.innerHTML=html;
