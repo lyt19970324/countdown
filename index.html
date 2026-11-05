@@ -247,28 +247,50 @@ var LEGAL_REST = {
   "2026-09-25":"中秋节", "2026-09-26":"中秋节", "2026-09-27":"中秋节",
   "2026-10-01":"国庆节", "2026-10-02":"国庆节", "2026-10-03":"国庆节", "2026-10-04":"国庆节",
   "2026-10-05":"国庆节", "2026-10-06":"国庆节", "2026-10-07":"国庆节",
-  "2027-01-01":"元旦",
-  "2027-02-06":"春节", "2027-02-07":"春节", "2027-02-08":"春节",
-  "2027-04-05":"清明节",
-  "2027-05-01":"劳动节",
+  "2027-01-01":"元旦", "2027-01-02":"元旦", "2027-01-03":"元旦",
+  "2027-02-05":"除夕", "2027-02-06":"春节", "2027-02-07":"春节", "2027-02-08":"春节",
+  "2027-02-09":"春节", "2027-02-10":"春节", "2027-02-11":"春节", "2027-02-12":"春节", "2027-02-13":"春节",
+  "2027-04-03":"清明节", "2027-04-04":"清明节", "2027-04-05":"清明节",
+  "2027-05-01":"劳动节", "2027-05-02":"劳动节", "2027-05-03":"劳动节", "2027-05-04":"劳动节", "2027-05-05":"劳动节",
   "2027-06-09":"端午节",
   "2027-09-15":"中秋节",
-  "2027-10-01":"国庆节", "2027-10-02":"国庆节", "2027-10-03":"国庆节"
+  "2027-10-01":"国庆节", "2027-10-02":"国庆节", "2027-10-03":"国庆节", "2027-10-04":"国庆节",
+  "2027-10-05":"国庆节", "2027-10-06":"国庆节", "2027-10-07":"国庆节",
+  "2028-01-01":"元旦",
+  "2028-01-25":"除夕", "2028-01-26":"春节", "2028-01-27":"春节", "2028-01-28":"春节",
+  "2028-04-04":"清明节",
+  "2028-05-01":"劳动节", "2028-05-02":"劳动节",
+  "2028-05-28":"端午节",
+  "2028-10-01":"国庆节", "2028-10-02":"国庆节", "2028-10-03":"国庆节·中秋",
+  "2029-01-01":"元旦",
+  "2029-02-12":"除夕", "2029-02-13":"春节", "2029-02-14":"春节", "2029-02-15":"春节",
+  "2029-04-04":"清明节",
+  "2029-05-01":"劳动节", "2029-05-02":"劳动节",
+  "2029-06-16":"端午节",
+  "2029-09-22":"中秋节",
+  "2029-10-01":"国庆节", "2029-10-02":"国庆节", "2029-10-03":"国庆节",
+  "2030-01-01":"元旦",
+  "2030-02-02":"除夕", "2030-02-03":"春节", "2030-02-04":"春节", "2030-02-05":"春节",
+  "2030-04-05":"清明节",
+  "2030-05-01":"劳动节", "2030-05-02":"劳动节",
+  "2030-06-05":"端午节",
+  "2030-09-12":"中秋节",
+  "2030-10-01":"国庆节", "2030-10-02":"国庆节", "2030-10-03":"国庆节"
 };
 var LEGAL_WORK = {
   "2025-01-26":true, "2025-02-08":true, "2025-04-27":true, "2025-09-28":true, "2025-10-11":true,
   "2026-01-04":true, "2026-02-14":true, "2026-02-28":true, "2026-05-09":true,
-  "2026-09-20":true, "2026-10-10":true
+  "2026-09-20":true, "2026-10-10":true,
+  "2027-01-31":true, "2027-02-14":true, "2027-05-08":true, "2027-09-26":true, "2027-10-09":true
 };
 /* 调休安排未公布的年份（远程数据更新后会自动覆盖） */
-var incompleteYears = ["2027"];
+var incompleteYears = ["2028","2029","2030"];
 /* 在线假日数据源：更新仓库里的 holidays.json，应用打开即自动生效 */
 var REMOTE_SOURCES = [
   "https://cdn.jsdelivr.net/gh/lyt19970324/countdown@main/holidays.json",
   "https://raw.githubusercontent.com/lyt19970324/countdown/main/holidays.json"
 ];
 var HOLIDAY_CACHE_KEY = "countdown-holiday-remote";
-var HOLIDAY_CACHE_TTL = 24*3600*1000;
 
 var state = {
   restDays: [6,0],
@@ -596,28 +618,30 @@ document.addEventListener("change", function(e){
   }
 });
 
+/* 内置假日数据版本：低于此版本的远程文件一律不采纳，
+   避免仓库里残留的旧 holidays.json 把网页内置的新数据覆盖回去 */
+var BUILTIN_DATA_VERSION = 2;
+
 /* 在线假日数据：拉取仓库里的 holidays.json，官方公布新安排后更新文件即自动生效 */
 function applyRemoteData(data){
   if (!data || typeof data !== "object") return false;
   var rest = data.rest, work = data.work;
   if (!rest || typeof rest !== "object") return false;
+  if (typeof data.version === "number" && data.version < BUILTIN_DATA_VERSION) return false;
   LEGAL_REST = rest;
   LEGAL_WORK = (work && typeof work === "object") ? work : {};
   if (Array.isArray(data.incompleteYears)) incompleteYears = data.incompleteYears;
   return true;
 }
 function tryFetchRemoteHolidays(){
+  /* 先用本地缓存渲染，保证秒开 */
   var cacheRaw=null;
   try { cacheRaw=localStorage.getItem(HOLIDAY_CACHE_KEY); } catch(e){}
   if (cacheRaw){
-    try {
-      var c=JSON.parse(cacheRaw);
-      if (c.time && Date.now()-c.time < HOLIDAY_CACHE_TTL && c.data){
-        if (applyRemoteData(c.data)) render();
-        return;
-      }
-    } catch(e){}
+    try { var c=JSON.parse(cacheRaw); if (c && c.data) applyRemoteData(c.data); } catch(e){}
   }
+  render();
+  /* 每次打开都联网拉最新版：仓库里的 holidays.json 一更新，下次打开立即生效 */
   var i=0;
   function next(){
     if (i>=REMOTE_SOURCES.length) return;
@@ -626,10 +650,9 @@ function tryFetchRemoteHolidays(){
       if (!r.ok) throw new Error("http "+r.status);
       return r.json();
     }).then(function(data){
-      if (applyRemoteData(data)){
-        try { localStorage.setItem(HOLIDAY_CACHE_KEY, JSON.stringify({time:Date.now(), data:data})); } catch(e){}
-        render();
-      }
+      if (!applyRemoteData(data)){ next(); return; }
+      try { localStorage.setItem(HOLIDAY_CACHE_KEY, JSON.stringify({time:Date.now(), data:data})); } catch(e){}
+      render();
     }).catch(next);
   }
   next();
